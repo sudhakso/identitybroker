@@ -6,7 +6,8 @@ import (
 //	"errors"
 	"net"
 	
-	"github.com/identitybroker/api"
+	api "github.com/identitybroker/api/handler"
+	provider "github.com/identitybroker/pkg/provider"
 	"google.golang.org/grpc"
 
 )
@@ -20,16 +21,14 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	
-	s := api.Server{}
-	
+	s := provider.ResourceProviderService{}
 	grpcServer := grpc.NewServer()
 	
-	//regsiter the ping server
-	api.RegisterPingServer(grpcServer, &s)
+	//regsiter the resource provider server
+	api.RegisterResourceProviderServer(grpcServer, s)
 	
 	// start the server
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to server : %v", err)
 	}
 }
-

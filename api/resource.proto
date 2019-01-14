@@ -1,0 +1,57 @@
+syntax = "proto3";
+package api;
+
+message ProviderOpts {
+	string type = 1;
+	string namespace = 2;
+	string providerId = 3;
+}
+
+message ResourceType {
+	string name 		= 1;
+	string pathPrefix	= 3;
+}
+
+message ResourceTypes {
+	repeated ResourceType types = 1;
+}
+
+message ResourceKey {
+	string keyName 	= 1;
+	string regExp	= 2;	
+}
+
+message Resource {
+	string id	= 1;
+	string kind	= 2;
+	string name = 3;
+	enum ResourceIdType {
+		ONESPHERE_OWNED 	= 0;
+		ONESPHERE_MANAGED 	= 1;
+		SYSTEM_MANAGED 		= 2;
+	}
+	ResourceIdType ownType = 4;
+	ResourcePlan plan = 5;
+	repeated string tags = 6;
+	map<string, string> properties = 7;
+}
+
+message Resources {
+	repeated Resource resources = 1;
+}
+
+message ResourcePlan {
+	string name = 1;
+	string apiVersion = 2;
+}
+
+message GetResourceOpts {
+ 	ResourceKey key = 1;
+ 	ResourceType type = 2;
+ 	ProviderOpts provider = 3;
+}
+
+message GetResourceTypeOpts {
+ 	ResourceType type = 1;
+ 	ProviderOpts provider = 2;
+}

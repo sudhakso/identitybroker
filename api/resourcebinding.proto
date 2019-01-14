@@ -1,0 +1,31 @@
+syntax = "proto3";
+package api;
+
+import "resource.proto";
+
+message ResourceIdentifier {
+	ResourceType type = 1;
+	string name	  	  = 2;
+	string pathPrefix = 3;
+}
+
+message ResourceLink {
+   ResourceIdentifier fromResource 	= 1;
+   ResourceIdentifier toResource  	= 2;
+   repeated string annotations 		= 3; 
+}
+
+message ResourceBindings {
+	repeated ResourceLink bindings = 1;
+}
+
+message ResourceBindingOpts {
+	ResourceIdentifier fromResourceId = 1;
+	ResourceIdentifier toResourceId   = 2;
+	ProviderOpts	   provider		  = 3;
+}
+
+service ResourceBinding {
+	rpc AssignResourceLink(ResourceBindingOpts) returns (ResourceBindings) {}
+	rpc RemoveResourceLink(ResourceBindingOpts) returns (ResourceBindings) {}
+}
