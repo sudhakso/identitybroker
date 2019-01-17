@@ -6,8 +6,9 @@ import (
 //	"errors"
 	"net"
 	
+	rpcgen "github.com/identitybroker/api/_generated"
 	api "github.com/identitybroker/api/handler"
-	provider "github.com/identitybroker/pkg/provider"
+	mapper "github.com/identitybroker/api/mapper"
 	"google.golang.org/grpc"
 
 )
@@ -21,11 +22,11 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	
-	s := provider.ResourceProviderService{}
+	s := api.ResourceProviderService{ResMapper: mapper.NewResourceMapper()}
 	grpcServer := grpc.NewServer()
 	
 	//regsiter the resource provider server
-	api.RegisterResourceProviderServer(grpcServer, s)
+	rpcgen.RegisterResourceProviderServer(grpcServer, s)
 	
 	// start the server
 	if err := grpcServer.Serve(lis); err != nil {

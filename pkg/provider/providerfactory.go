@@ -5,15 +5,15 @@ import (
 )
 
 type ProviderConnection struct { //ProviderOpts
-  dummy string
+  Dummy string
 }
 
 type RegisterOpts struct { //ProviderRegistrationOpts
-	dummy string
+	Dummy string
 }
 
 type Status struct { //RegistrationStatus
-	dummy string
+	Dummy string
 }
 
 type Registrar interface {
@@ -26,7 +26,7 @@ type ProviderRegistrationFactory struct {
 	Options *RegisterOpts
 }
 
-func NewProviderRegistrar(opts *RegisterOpts) (*Registrar, error) {
+func NewProviderRegistrar(opts *RegisterOpts) (Registrar, error) {
 	return nil, nil
 }
 
