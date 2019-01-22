@@ -5,7 +5,7 @@ import (
 //	"errors"
 	"golang.org/x/net/context"
 	
-	"github.com/identitybroker/api"
+	rpcgen "github.com/identitybroker/api/_generated"
 	"google.golang.org/grpc"
 
 )
@@ -20,14 +20,21 @@ func main() {
 	}
 	defer conn.Close()
 	
-	c := api.NewPingClient(conn)
+	c := rpcgen.NewResourceProviderClient(conn)
 	
 	// Invoke API
-	r, err := c.SayHello(context.Background(), &api.PingMessage{Greetings: "Hello World!"})
+	opt := rpcgen.ProviderRegistrationOpts{
+		Namespace: "myOkta1", 
+		ProviderType: "Okta", 
+		Cred: &rpcgen.Credential{
+			ApiKey: "goodkey",
+			AuthUrl: "goodUrl"},
+	}
+	r, err := c.RegisterProvider(context.Background(), &opt)
 	if err != nil {
 		log.Fatalf("Error invoking API : %v", err)
 	}	
 	
-	log.Printf("Response from the server : %s\n", r.Greetings)
+	log.Printf("Response from the server : %s\n", r.ProviderId)
 }
 

@@ -15,7 +15,7 @@ import (
 func Trace(msg string) func() {
 	// print regular trace
 	start := time.Now()
-	log.Printf("Handler ", msg)
+	log.Printf("Handler %s", msg)
 	return func() {log.Printf("Finished handler %s %s\n", msg, time.Since(start))}
 }
 
@@ -31,13 +31,15 @@ func (r ResourceProviderService) RegisterProvider(ctx context.Context, opts *rpc
 	reg, err := prov.NewProviderRegistrar(rOpts) //factory
 	if err != nil {
 		log.Printf("Failed creating a Registrar : %v", err)
-		return nil, err
+		s := &rpcgen.RegistrationStatus{Error: true, OriginalError: err.Error()}
+		return s, err
 	}
 
 	stat, err := reg.RegisterProvider() // delegate
 	if err != nil {
 		log.Printf("Failed registering the Provider")
-		return nil, err
+		s := &rpcgen.RegistrationStatus{Error: true, OriginalError: err.Error()}		
+		return s, err
 	}
 	return newRegistrationStatus(*stat), nil
 }
@@ -185,7 +187,13 @@ func newProviderConnection(opts rpcgen.ProviderOpts) *prov.ProviderConnection {
 }
 
 func newRegisterOpts(opts rpcgen.ProviderRegistrationOpts) *prov.RegisterOpts {
-	return &prov.RegisterOpts{Dummy:"Dummy"}
+	return &prov.RegisterOpts{
+		Dummy		:"Dummy",
+		Namespace	: opts.Namespace, 
+		ProviderType: opts.ProviderType,
+		DomainUrl	: opts.Cred.AuthUrl,
+		ApiKey		: opts.Cred.ApiKey,
+	}
 }
 
 func newStatus(opts rpcgen.RegistrationStatus) *prov.Status {

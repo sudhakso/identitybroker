@@ -16,14 +16,19 @@ type GenericProviderOpts struct { //ProviderOpts //placeholder
 
 // moves to ORM layer
 type ProviderResource struct {
-	Dummy string
+	Id    string
+	Name  string
 	Kind  string
+	// test
+	Dummy string
 }
 
 // moves to ORM layer
 type ProviderResourceType struct {
+	Name  string
+	Location string
+	// test
 	Dummy string
-	Kind  string
 }
 
 // moves to ORM layer

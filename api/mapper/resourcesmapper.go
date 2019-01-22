@@ -63,17 +63,38 @@ type UserTypeConversion struct {
 
 func (u* UserTypeConversion) Serialize(res *provider.ProviderResource) (*api.Resource, error) {
 	// TBD: Serialize User
-	return nil, nil
+	if res != nil {
+		r := &api.Resource{Kind: "User", Name: res.Name, Id: res.Id}
+		return r, nil
+	}
+	return nil, errors.New("Serialization Failed for ProviderResource")
 }
 
 
 func (u* UserTypeConversion) SerializeType(t *provider.ProviderResourceType) (*api.ResourceType, error) {
 	// TBD: Serialize UserType
-	return nil, nil
+	if t != nil {
+		r := &api.ResourceType{Name: t.Name, PathPrefix: t.Location}
+		return r, nil
+	}
+	return nil, errors.New("Serialization Failed for ProviderResourceType")
 }
 
 func (u* UserTypeConversion) SerializeCollection(res *provider.ProviderResources) (*api.Resources, error) {
-	return nil, nil
+	if res != nil {
+		r := api.Resources{Resources: make([]*api.Resource, 1, 2)}
+		ut := &UserTypeConversion{}
+		for _, pr := range res.Resources {
+			_pr, err :=  ut.Serialize(pr)
+			if err != nil {
+				return nil, errors.New("Serialization Failed for ProviderResources")
+			} else {
+				r.Resources = append(r.Resources, _pr)
+			}
+		}
+		return &r, nil
+	}
+	return nil, errors.New("Serialization Failed for ProviderResources")
 }
 
 type ApplicationTypeConversion struct {	
