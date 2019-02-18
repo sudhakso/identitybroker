@@ -11,25 +11,28 @@ const (
 )
 
 type ResourceType struct {
-	TypeName 	string
+	TypeName 	string			`gorm:"primary_key"`
 	Path	 	string
 	Version 	string
+	ProviderID  int
 }
 
 type Credential struct {
 	gorm.Model
-	
-	AccessKey	string	
+	ProviderID	uint
+	AccessKey	string
 }
 
 type Provider struct {
 	gorm.Model
 	
-	Name 			string		`gorm:"PRIMARY_KEY;UNIQUE"`
-	Type 			string		`gorm:"type:text"`
+	Name 			string			`gorm:"primary_key"`
+	Type 			string			`gorm:"type:text"`
 	State			string
 	Url				string
-	Credential  	Credential
+	
+	Credential  	Credential		
+	// one-to-many
 	ResourceTypes 	[]ResourceType
 }
 

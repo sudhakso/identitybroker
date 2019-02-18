@@ -2,6 +2,8 @@ package provider
 
 import (
 	"log"
+	"fmt"
+	"errors"
 	
 	"github.com/identitybroker/configs"
 	"github.com/identitybroker/internal/pkg/store"
@@ -21,14 +23,25 @@ type RegisterOpts struct { //ProviderRegistrationOpts
 	ApiKey			string
 }
 
+type UpdateOpts struct { //ProviderRegistrationOpts
+	DomainUrl		string
+	ApiKey			string
+}
+
 type Status struct { //RegistrationStatus
 	Dummy string
-	RegistrationId 		string
-	RegistrationName  	string
-	CurrentState		string	
-	NewlyCreated		bool
+	// Request info
 	RequestName			string
-	Errored				bool
+	// Provider data
+	ProviderId			string
+	ProviderName		string
+	Locations			[]string
+	// Status
+	State				string
+	StateRef			uint
+	// Errors
+	ErrorCode			int
+	Description			string
 }
 
 type Registrar interface {
@@ -44,6 +57,10 @@ type ProviderRegistrationFactory struct {
 
 func NewProviderRegistrar(opts *RegisterOpts) (Registrar, error) {
 	log.Printf("Registration factory for %s", opts.Namespace)
+	
+	//TBD: move to start up
+	backend.InitializeDBFromRuntimeConfig(model.AutoMigrateTables)
+	
 	// db config
 	dbConfig := backend.DBConfigOpts{Username: configs.BootConfig.DB_User,
 		Password: 		configs.BootConfig.DB_Password,
@@ -53,8 +70,7 @@ func NewProviderRegistrar(opts *RegisterOpts) (Registrar, error) {
 		BackendType: 	backend.DBBackendType(configs.BootConfig.DB_Type),
 	}
 	// TBD error
-	// Always gets a singleton instance of DB and wraps it with ORM interface
-	db, err := backend.NewDBFromConfig(dbConfig, model.AutoMigrateTables)
+	db, err := backend.NewOrmConfig(dbConfig).OpenDBFromConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -62,11 +78,11 @@ func NewProviderRegistrar(opts *RegisterOpts) (Registrar, error) {
 	// Success
 	return &ProviderRegistrationFactory{
 		Options: opts,
-		orm: store.ProviderORM{
+		orm: &ProviderORM {
 			Provider: model.Provider{
 				Name: opts.Namespace,
 				Type: opts.ProviderType,
-				State: "Active",
+				State: "Pending",
 				Url: opts.DomainUrl,
 				Credential: model.Credential{AccessKey: opts.ApiKey},
 				// TBD : Move to Provider specific driver
@@ -82,33 +98,60 @@ func NewProviderRegistrar(opts *RegisterOpts) (Registrar, error) {
 
 func (r *ProviderRegistrationFactory) RegisterProvider() (*Status, error) {
 	log.Printf("Registering the Provider %s", r.Options.Namespace)
-	// Connect to the provider
 	// Store connection parameters
 	if _, err := r.orm.Store(); err != nil {
-		stat := &Status{RequestName: "RegisterProvider", Errored: true}
+		stat := &Status{
+			RequestName	: "RegisterProvider",
+			ProviderId	: "",
+			ProviderName: r.Options.Namespace,
+			State		: "Error",
+			ErrorCode	: 102,
+			Description	: fmt.Sprintf("Failed to store provider details in database, Error = %v", err),
+		} 
+		log.Printf("Error : %v", stat)
 		return stat, err
 	}
 	
-	//Stored, get hidden values
-	prov := model.Provider{Name: r.Options.Namespace, Type: r.Options.ProviderType}
-	result, err := r.orm.Get(prov)
+	// Get provider details	
+	result, err := r.orm.Get()
 	if err != nil {
-		//erro in getting
-		stat := &Status{RequestName: "RegisterProvider", Errored: true}
+		stat := &Status{
+			RequestName	: "RegisterProvider",
+			ProviderId	: "",
+			ProviderName: r.Options.Namespace,
+			State		: "Error",
+			ErrorCode	: 103,
+			Description	: fmt.Sprintf("Failed to retrieve provider details from database, Error = %v", err),
+		} 
+		log.Printf("Error : %v", stat)
 		return stat, err
 	}
-	
+	// Map Results
 	v, ok := result.(model.Provider);
 	if !ok {
-		//erro in getting
-		stat := &Status{RequestName: "RegisterProvider", Errored: true}
-		return stat, err
-	} 
-	stat := &Status{RequestName: "RegisterProvider",
-		 RegistrationId		: 	string(v.ID),
-		 RegistrationName	: 	v.Name,
-		 CurrentState		: 	v.State,
+			stat := &Status {
+			RequestName	: "RegisterProvider",
+			ProviderId	: "",
+			ProviderName: r.Options.Namespace,
+			State		: "Error",
+			ErrorCode	: 104,
+			Description	: fmt.Sprintf("Error mapping data from the database for %s", r.Options.Namespace),
+			}
+		log.Printf("Error : %v", stat)
+		return stat, errors.New(fmt.Sprintf("Error mapping data from the database for %s", r.Options.Namespace))
 	}
+	
+	// TBD: Spawn asynchronous task to update Provider
+	
+	// Return valid results to the caller
+	stat := &Status {
+		RequestName		: "RegisterProvider",
+		ProviderId		: string(v.ID),
+		ProviderName	: v.Name,
+		State			: v.State,
+		ErrorCode		: 0,
+		Description		: fmt.Sprintf("Succesfully registered the provider %s", r.Options.Namespace),
+	}	
 	return stat, nil
 }
 

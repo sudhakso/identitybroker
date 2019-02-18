@@ -7,14 +7,19 @@ import "resourcebinding.proto";
 message Credential {
 	string apiKey		= 1;
 	string clientId 	= 2;
-	string authUrl 		= 3;
-	string base64Cert 	= 4; 
+	string authUrl 		= 3; 
 }
 
 message ProviderRegistrationOpts {
     string namespace 	= 1;
 	string providerType = 2;
 	Credential cred		= 3;
+}
+
+message ProviderUpdateOpts {
+    string     providerId   = 1;
+    string     providerName = 2;
+	Credential cred		    = 3;
 }
 
 message RegistrationStatus {
@@ -41,9 +46,10 @@ message Provider {
 service ResourceProvider {
 	rpc RegisterProvider(ProviderRegistrationOpts) returns (RegistrationStatus) {}
 	rpc DeRegisterProvider(ProviderRegistrationOpts) returns (RegistrationStatus) {}
+	rpc UpdateProvider(ProviderUpdateOpts) returns (RegistrationStatus) {}
+	rpc GetResourceTypes(ProviderOpts) returns (ResourceTypes) {}	
 	rpc GetResource(GetResourceOpts) returns (Resource) {}
 	rpc ListResource(GetResourceOpts) returns (Resources) {}
-	rpc GetResourceTypes(ProviderOpts) returns (ResourceTypes) {}
 	rpc AssignResourceLink(ResourceBindingOpts) returns (ResourceBindings) {}
 	rpc RemoveResourceLink(ResourceBindingOpts) returns (ResourceBindings) {}
 }

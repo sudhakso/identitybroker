@@ -6,9 +6,11 @@ import (
 	"errors"
 	
 	"golang.org/x/net/context"
+	
 	prov "github.com/identitybroker/pkg/provider"
 	mapper "github.com/identitybroker/api/mapper"
 	rpcgen "github.com/identitybroker/api/_generated"
+	model "github.com/identitybroker/internal/pkg/model"
 )
 
 // A trace utility function
@@ -26,22 +28,22 @@ type ResourceProviderService struct {
 
 func (r ResourceProviderService) RegisterProvider(ctx context.Context, opts *rpcgen.ProviderRegistrationOpts) (*rpcgen.RegistrationStatus, error) {
 	defer Trace("RegisterProvider()")()
-	
+
 	rOpts := newRegisterOpts(*opts) //cast
 	reg, err := prov.NewProviderRegistrar(rOpts) //factory
 	if err != nil {
 		log.Printf("Failed creating a Registrar : %v", err)
-		s := &rpcgen.RegistrationStatus{Error: true, OriginalError: err.Error()}
-		return s, err
+		// Error
+		return newRegistrationStatusFromError(err), err
 	}
 
 	stat, err := reg.RegisterProvider() // delegate
 	if err != nil {
-		log.Printf("Failed registering the Provider")
-		s := &rpcgen.RegistrationStatus{Error: true, OriginalError: err.Error()}		
-		return s, err
+		// Error
+		return newRegistrationStatus(stat), err
 	}
-	return newRegistrationStatus(*stat), nil
+	// Success
+	return newRegistrationStatus(stat), nil
 }
 
 func (r ResourceProviderService) DeRegisterProvider(ctx context.Context, opts *rpcgen.ProviderRegistrationOpts) (*rpcgen.RegistrationStatus, error) {
@@ -51,7 +53,7 @@ func (r ResourceProviderService) DeRegisterProvider(ctx context.Context, opts *r
 	reg, err := prov.NewProviderRegistrar(rOpts) //factory
 	if err != nil {
 		log.Printf("Failed creating a Registrar : %v", err)
-		return nil, err
+		return newRegistrationStatusFromError(err), err
 	}
 	
 	stat, err := reg.DeRegisterProvider() // delegate
@@ -59,8 +61,41 @@ func (r ResourceProviderService) DeRegisterProvider(ctx context.Context, opts *r
 		log.Printf("Failed (de)registering the Provider")
 		return nil, err
 	}
-	return newRegistrationStatus(*stat), nil
+	return newRegistrationStatus(stat), nil
 }
+
+func (r ResourceProviderService) UpdateProvider(
+									ctx context.Context,
+									opts *rpcgen.ProviderUpdateOpts) (*rpcgen.RegistrationStatus, error) {
+	defer Trace("UpdateProvider()")()
+	//create providerORM resource
+	orm, err := prov.NewProviderORM(newProviderFilterFromInput(opts))
+	if err != nil {
+		return newRegistrationStatusFromError(err), err
+	}
+	// Update records and related
+	updateerr := orm.Update(newProviderUpdateOptsFromInput(opts))
+	if updateerr != nil {
+		return newRegistrationStatusFromError(updateerr), updateerr
+	}
+	
+	//get latest provider record
+	v, geterr := orm.Get()
+	if geterr != nil {
+		return newRegistrationStatusFromError(geterr), geterr
+	}
+	// cast the provider; should never Fail
+	if p, ok := v.(model.Provider); ok {
+		return newRegistrationStatus(&prov.Status{
+										RequestName	: "UpdateProvider",
+										ProviderId	: string(p.ID),
+										ProviderName: p.Name,
+							}), nil
+		}
+	// unknown error
+	e := errors.New("Unknown error")
+	return newRegistrationStatusFromError(e), e
+}								
 
 func (r ResourceProviderService) GetResource(ctx context.Context, opts *rpcgen.GetResourceOpts) (*rpcgen.Resource, error) {
 	defer Trace("GetResource()")()
@@ -179,7 +214,7 @@ func newResourceReaderOpts(opts rpcgen.GetResourceOpts) *prov.ResourceReaderOpts
 }
 
 func newGenericProviderOpts(opts rpcgen.ProviderOpts) *prov.GenericProviderOpts {
-	return &prov.GenericProviderOpts{Dummy:"Dummy"}
+	return &prov.GenericProviderOpts{Dummy:"Dummy", Namespace:opts.Namespace, ProviderId:opts.ProviderId}
 }
 
 func newProviderConnection(opts rpcgen.ProviderOpts) *prov.ProviderConnection {
@@ -200,6 +235,30 @@ func newStatus(opts rpcgen.RegistrationStatus) *prov.Status {
 	return &prov.Status{Dummy:"Dummy"}
 }
 
-func newRegistrationStatus(opts prov.Status) *rpcgen.RegistrationStatus {
-	return &rpcgen.RegistrationStatus{Error: true, OriginalError: "", ProviderId: "", ProviderNamespace: ""}
+func newRegistrationStatus(opts *prov.Status) *rpcgen.RegistrationStatus {
+	return &rpcgen.RegistrationStatus{
+		Error: false,
+		ProviderId: opts.ProviderId,
+		ProviderNamespace: opts.ProviderName}
 }
+
+func newRegistrationStatusFromError(err error) *rpcgen.RegistrationStatus {
+	return &rpcgen.RegistrationStatus{
+		Error: true, 
+		OriginalError: err.Error()}
+}
+
+func newProviderFilterFromInput(opts *rpcgen.ProviderUpdateOpts) *prov.ProviderResource {
+	return &prov.ProviderResource{
+					Id: opts.ProviderId,
+					Name: opts.ProviderName,
+	}
+}
+
+func newProviderUpdateOptsFromInput(opts *rpcgen.ProviderUpdateOpts) prov.UpdateOpts {
+	return prov.UpdateOpts{
+					ApiKey: opts.Cred.ApiKey,
+					DomainUrl: opts.Cred.AuthUrl,
+	}
+}
+
